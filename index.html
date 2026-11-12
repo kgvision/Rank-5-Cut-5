@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rank 5, Cut 5</title>
+<style>
+:root{--bg:#14121a;--card:#221f2c;--ink:#f4f1fa;--mute:#9b94ad;--cut:#ff5a6e;--rank:#ffd36e;--acc:#b794ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow-x:hidden;overflow-y:auto}
+#app{min-height:100dvh;display:flex;flex-direction:column;padding:max(10px,env(safe-area-inset-top)) 12px max(10px,env(safe-area-inset-bottom));gap:8px;max-width:760px;margin:0 auto}
+h1{font-size:20px;margin:0;letter-spacing:.3px}
+h1 b{color:var(--rank)}h1 span{color:var(--cut)}
+.decks{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.decks button{flex:none;background:var(--card);color:var(--mute);border:1px solid #373247;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.decks button.on{background:var(--acc);color:#1a1226;border-color:var(--acc);font-weight:600}
+#cat{flex:none;text-align:center;font-size:24px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px;border-radius:14px;color:#1a1226;background:var(--acc)}
+#stage{height:104px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--card);border-radius:16px;border:2px dashed #3a3450}
+#stage .done{color:var(--mute);text-align:center;font-size:14px;padding:0 16px}
+.chip{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;background:#322d42;border:1px solid #4a4360;border-radius:12px;padding:6px 10px;font-size:14px;line-height:1.2;display:flex;align-items:center;gap:6px;box-shadow:0 2px 0 #00000055}
+#stage .chip{font-size:24px;padding:16px 26px;border-radius:18px;animation:pop .35s ease-out;flex-direction:column;gap:2px;text-align:center}
+#stage .chip .em{font-size:34px}
+@keyframes pop{from{transform:scale(.5) rotate(-5deg);opacity:0}to{transform:none;opacity:1}}
+.chip.ghost{position:fixed;z-index:50;pointer-events:none;transform:rotate(-3deg) scale(1.06);box-shadow:0 10px 24px #000a;opacity:.95;margin:0}
+.chip.dragging{opacity:.3}
+.chip.sel{outline:2px solid var(--acc)}
+.panels{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:6px;border:2px solid;min-height:0;transition:background .15s}
+.panel.rank{border-color:var(--rank);background:#ffd36e12}
+.panel.cut{border-color:var(--cut);background:#ff5a6e12}
+.panel.over{background:#b794ff30}
+.panel h2{margin:0;font-size:14px;display:flex;justify-content:space-between}
+.panel.rank h2{color:var(--rank)}.panel.cut h2{color:var(--cut)}
+.panel h2 em{font-style:normal;font-size:12px;color:var(--mute)}
+.slots{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px}
+.slot{flex:1;min-height:34px;display:flex;align-items:stretch;gap:6px;border-radius:10px;border:1.5px dashed #4a4360;padding:2px;transition:background .12s,border-color .12s}
+.slot.over{background:#b794ff40;border-color:var(--acc)}
+.slot .n{flex:none;width:24px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:var(--rank)}
+.slot .x{flex:none;width:24px;display:flex;align-items:center;justify-content:center;color:var(--cut);font-size:14px}
+.slot .chip{flex:1;min-width:0;padding:2px 8px;font-size:13px;box-shadow:none}
+.slot .chip span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.panel.rank .slot:nth-child(1) .n{color:#ffd700;font-size:18px}
+.panel.rank .slot:nth-child(2) .n{color:#cfd8e3}
+.panel.rank .slot:nth-child(3) .n{color:#e0a064}
+.locked .chip{cursor:default}
+.locked .panel.cut .chip{text-decoration:line-through;opacity:.7}
+.locked .panel.rank .slot:nth-child(1) .chip{background:#4a3d12;border-color:#ffd700}
+#msg{text-align:center;font-size:14px;min-height:18px;color:var(--mute)}
+#msg.err{color:var(--cut);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.bar{display:flex;gap:8px}
+.bar button{flex:1;border:0;border-radius:12px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
+#lock{background:var(--acc);color:#1a1226}#lock:disabled{opacity:.4}
+.sec{background:#322d42;color:var(--ink)}
+.hide{display:none!important}
+
+html{-webkit-text-size-adjust:100%}
+#app{height:auto;min-height:100vh;min-height:100dvh}
+.panels{min-height:380px}
+h1{grid-area:t}.decks{grid-area:d}#cat{grid-area:c}#stage{grid-area:s}#msg{grid-area:m}.panels{grid-area:p}.bar{grid-area:b}
+.chip:hover{border-color:var(--acc)}
+.bar button:hover:not(:disabled){filter:brightness(1.12)}
+/* tablet / desktop */
+@media (min-width:700px){
+  #app{max-width:980px;padding-top:18px;padding-bottom:18px;gap:12px}
+  h1{font-size:28px}
+  .decks button{font-size:15px;padding:8px 16px}
+  #cat{font-size:34px;padding:12px}
+  #stage{height:150px}
+  .panels{min-height:440px}
+  #stage .chip{font-size:32px;padding:20px 40px}
+  #stage .chip .em{font-size:48px}
+  .panel{padding:14px;gap:10px}
+  .panel h2{font-size:18px}
+  .slots{gap:9px}
+  .slot{min-height:48px}
+  .slot .n{font-size:20px;width:34px}.slot .x{width:34px;font-size:17px}
+  .slot .chip{font-size:17px;padding:4px 14px}
+  #msg{font-size:16px}
+  .bar button{font-size:17px;padding:15px}
+}
+/* phones in landscape / short windows: two-column layout */
+@media (orientation:landscape) and (max-height:560px){
+  #app{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);grid-template-rows:auto auto auto 1fr auto auto;
+    grid-template-areas:"t p" "d p" "c p" "s p" "m p" "b p";column-gap:12px;row-gap:6px;max-width:none;
+    padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  h1{font-size:17px}
+  .decks{flex-wrap:wrap;overflow:visible}
+  .decks button{padding:4px 9px;font-size:12px}
+  #cat{font-size:17px;padding:5px}
+  #stage{height:auto;min-height:70px}
+  .panels{min-height:300px}
+  #stage .chip{font-size:18px;padding:8px 16px}#stage .chip .em{font-size:24px}
+  .hint{display:none}
+  .bar button{padding:8px;font-size:14px}
+}
+/* very narrow phones */
+@media (max-width:360px){
+  #cat{font-size:19px}
+  .slot .chip{font-size:12px}
+  .decks button{font-size:12px;padding:5px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🏆 Rank <b>5</b>, Cut <span>5</span></h1>
+  <div class="decks" id="decks"></div>
+  <div id="cat"></div>
+  <div id="stage"></div>
+  <div id="msg"></div>
+  <div class="panels">
+    <div class="panel rank" data-z="rank"><h2>🏆 RANK <em id="cr">0/5</em></h2><div class="slots" id="rankSlots"></div></div>
+    <div class="panel cut" data-z="cut"><h2>✂️ CUT <em id="cc">0/5</em></h2><div class="slots" id="cutSlots"></div></div>
+  </div>
+  <div class="bar">
+    <button class="sec" id="again">New round</button>
+    <button id="lock" disabled>Lock it in</button>
+    <button class="sec hide" id="copy">Copy list</button>
+  </div>
+</div>
+<script>
+const mk=(e,a)=>a.map(n=>[e,n]);
+const DECKS = {
+  'Black Actors':mk('🎭',['Denzel Washington','Morgan Freeman','Samuel L. Jackson','Angela Bassett','Viola Davis','Will Smith','Jamie Foxx','Eddie Murphy','Halle Berry','Regina King','Laurence Fishburne','Taraji P. Henson','Forest Whitaker','Chadwick Boseman','Whoopi Goldberg','Michael B. Jordan','Sidney Poitier','Octavia Spencer','Idris Elba','Queen Latifah']),
+  'Black Movies':mk('🎞️',['Malcolm X','Boyz n the Hood','Friday','The Color Purple','Do the Right Thing','Coming to America','Menace II Society','Love & Basketball','Set It Off','Black Panther','The Five Heartbeats','New Jack City','Moonlight','Soul Food','Get Out','Waiting to Exhale','12 Years a Slave','American Fiction','Sinners','Hidden Figures']),
+  'R&B Singers':mk('🎤',['Michael Jackson','Stevie Wonder','Marvin Gaye','Whitney Houston','Aretha Franklin','Beyoncé','Usher','Luther Vandross','Mary J. Blige','Aaliyah','R. Kelly','Toni Braxton','Alicia Keys','Prince','Anita Baker']),
+  'Black TV Shows':mk('📺',['Martin','Living Single','A Different World','The Fresh Prince of Bel-Air','Moesha','Girlfriends','Everybody Hates Chris','Atlanta','Insecure','Black-ish','Empire','Power','The Proud Family','Sister, Sister']),
+  'Best Music Genre Decade':mk('🎵',['50s Rock & Roll','60s Soul','70s Funk','70s Disco','80s Pop','80s Hip-Hop','90s R&B','90s Hip-Hop','2000s R&B','2000s Hip-Hop','2010s Trap','2010s Pop','2020s Afrobeats','2020s R&B'])
+};
+const COL={'Black Actors':'#ffd36e','Black Movies':'#ff8a8a','R&B Singers':'#ff9ecb','Black TV Shows':'#7fd1ff','Best Music Genre Decade':'#9bff9b'};
+const $=id=>document.getElementById(id);
+let deck=Object.keys(DECKS)[0], items=[], idx=0, rank=[], cut=[], locked=false, sel=null, msgT=0;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+const KEY='rank5cut5-v1';
+let S={},armed=false,armT=0;
+function save(){
+  S[deck]={items,idx,rank,cut,locked};
+  try{localStorage.setItem(KEY,JSON.stringify({S,deck}))}catch(e){}
+}
+function newRound(){
+  items=shuffle(DECKS[deck].map(d=>({e:d[0],t:d[1]}))).slice(0,10);
+  idx=0;rank=Array(5).fill(null);cut=Array(5).fill(null);locked=false;sel=null;
+}
+function restore(st){({items,idx,rank,cut,locked}=st);sel=null}
+function start(name){
+  if(name&&name!==deck){
+    save();deck=name;
+    if(S[deck])restore(S[deck]);else newRound();
+  }else newRound();
+  document.getElementById('app').classList.toggle('locked',locked);
+  render();
+}
+function isLocked(n){return n===deck?locked:!!(S[n]&&S[n].locked)}
+function say(t,err){
+  const m=$('msg');m.textContent=t;m.className=err?'err':'';
+  if(err){void m.offsetWidth;clearTimeout(msgT);msgT=setTimeout(render,2200)}
+}
+const cur=()=>idx<items.length?items[idx]:null;
+const getAt=s=>s.z==='cur'?cur():s.z==='rank'?rank[s.i]:cut[s.i];
+const setAt=(s,v)=>{(s.z==='rank'?rank:cut)[s.i]=v};
+const removeSrc=s=>{if(s.z==='cur')idx++;else setAt(s,null)};
+
+function shiftInsert(i,item){
+  let j=rank.findIndex((v,k)=>k>i&&!v);
+  if(j>=0){for(let k=j;k>i;k--)rank[k]=rank[k-1];rank[i]=item;return true}
+  j=-1;for(let k=0;k<i;k++)if(!rank[k])j=k;
+  if(j>=0){for(let k=j;k<i;k++)rank[k]=rank[k+1];rank[i]=item;return true}
+  return false;
+}
+function place(src,t){
+  if(locked)return;
+  const item=getAt(src);if(!item)return;
+  if(t.z==='rank'){
+    let i=t.i;if(i==null){i=rank.indexOf(null);if(i<0)i=null}
+    if(i==null){
+      if(src.z==='rank')return;
+      return 'Ranking is full — drop it on a ranked item to swap, or cut it.';
+    }
+    if(src.z==='rank'&&src.i===i)return;
+    const occ=rank[i];
+    if(!occ){removeSrc(src);rank[i]=item;return}
+    if(src.z==='rank'){setAt(src,occ);rank[i]=item;return}
+    if(rank.includes(null)){removeSrc(src);shiftInsert(i,item);return}
+    if(src.z==='cut'){setAt(src,occ);rank[i]=item;return}
+    return 'Ranking is full — this one has to be cut.';
+  }
+  if(src.z==='cut')return;
+  let j=(t.i!=null&&!cut[t.i])?t.i:cut.indexOf(null);
+  if(j>=0){removeSrc(src);cut[j]=item;return}
+  if(src.z==='rank'&&t.i!=null){setAt(src,cut[t.i]);cut[t.i]=item;return}
+  return 'Cut list is full — this one needs a rank.';
+}
+function chipEl(item,src,big){
+  const d=document.createElement('div');d.className='chip';
+  d.innerHTML=big?`<span class="em">${item.e}</span><span>${item.t}</span>`:`<span>${item.e}</span><span>${item.t}</span>`;
+  if(sel&&sel.z===src.z&&sel.i===src.i)d.classList.add('sel');
+  d.addEventListener('pointerdown',e=>startDrag(e,src,d));
+  return d;
+}
+function render(){
+  $('decks').innerHTML='';
+  Object.keys(DECKS).forEach(n=>{const b=document.createElement('button');b.textContent=(isLocked(n)?'🔒 ':'')+n;if(n===deck)b.className='on';b.onclick=()=>start(n);$('decks').appendChild(b)});
+  const cb=$('cat');cb.textContent=DECKS[deck][0][0]+' '+deck;cb.style.background=COL[deck]||'#b794ff';
+  const st=$('stage');st.innerHTML='';
+  const c=cur();
+  if(c)st.appendChild(chipEl(c,{z:'cur'},true));
+  else{const d=document.createElement('div');d.className='done';d.textContent=locked?'Your final lineup 👇':'All 10 placed! Rearrange by dragging if you like.';st.appendChild(d)}
+  [['rankSlots',rank,'rank'],['cutSlots',cut,'cut']].forEach(([id,arr,z])=>{
+    const box=$(id);box.innerHTML='';
+    arr.forEach((it,i)=>{
+      const s=document.createElement('div');s.className='slot';s.dataset.z=z;s.dataset.i=i;
+      const lab=document.createElement('div');lab.className=z==='rank'?'n':'x';lab.textContent=z==='rank'?i+1:'✕';s.appendChild(lab);
+      if(it)s.appendChild(chipEl(it,{z,i}));
+      box.appendChild(s);
+    });
+  });
+  $('cr').textContent=rank.filter(Boolean).length+'/5';
+  $('cc').textContent=cut.filter(Boolean).length+'/5';
+  $('lock').disabled=locked||!!c;
+  $('lock').classList.toggle('hide',locked);
+  $('copy').classList.toggle('hide',!locked);
+  const m=$('msg');m.className='';
+  armed=false;clearTimeout(armT);$('again').textContent='New round';
+  m.textContent=locked?'🔒 Locked in — your results are saved for this category':c?`Item ${idx+1} of 10 — rank it or cut it`:'Rearrange if you like, then lock it in.';
+  save();
+}
+function targetAt(x,y){
+  for(const el of document.elementsFromPoint(x,y)){
+    const t=el.closest&&el.closest('[data-z]');
+    if(t)return {z:t.dataset.z,i:t.dataset.i!=null?+t.dataset.i:null,el:t};
+  }return null;
+}
+function highlight(t){document.querySelectorAll('.over').forEach(e=>e.classList.remove('over'));if(t)t.el.classList.add('over')}
+function startDrag(e,src,el){
+  if(locked)return;
+  e.preventDefault();
+  const sx=e.clientX,sy=e.clientY,rect=el.getBoundingClientRect(),ox=sx-rect.left,oy=sy-rect.top;
+  let ghost=null,moved=false,cy=sy,tick=null;
+  const mv=ev=>{
+    if(!moved&&Math.hypot(ev.clientX-sx,ev.clientY-sy)>6){
+      moved=true;ghost=el.cloneNode(true);ghost.classList.add('ghost');ghost.style.width=Math.min(rect.width,200)+'px';
+      document.body.appendChild(ghost);el.classList.add('dragging');
+    }
+    cy=ev.clientY;
+    if(moved&&!tick)tick=setInterval(()=>{const h=innerHeight;if(cy<70)scrollBy(0,-14);else if(cy>h-70)scrollBy(0,14)},16);
+    if(moved){ghost.style.left=(ev.clientX-ox)+'px';ghost.style.top=(ev.clientY-oy)+'px';highlight(targetAt(ev.clientX,ev.clientY))}
+  };
+  const up=ev=>{
+    removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);
+    clearInterval(tick);highlight(null);if(ghost)ghost.remove();
+    const t=targetAt(ev.clientX,ev.clientY);
+    if(moved){sel=null;const err=t&&t.z!=='cur'?place(src,t):null;render();if(err)say(err,true)}
+    else{
+      if(sel&&!(sel.z===src.z&&sel.i===src.i)&&src.z!=='cur'){const s=sel;sel=null;const err=place(s,{z:src.z,i:src.i});render();if(err)say(err,true)}
+      else{sel=(sel&&sel.z===src.z&&sel.i===src.i)?null:src;render()}
+    }
+  };
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);addEventListener('pointercancel',up);
+}
+// tap a slot or panel with something selected
+document.querySelector('.panels').addEventListener('click',e=>{
+  if(!sel||e.target.closest('.chip'))return;
+  const t=e.target.closest('[data-z]');if(!t)return;
+  const s=sel;sel=null;
+  const err=place(s,{z:t.dataset.z,i:t.dataset.i!=null?+t.dataset.i:null});render();if(err)say(err,true);
+});
+$('lock').onclick=()=>{locked=true;sel=null;document.getElementById('app').classList.add('locked');render()};
+$('again').onclick=()=>{
+  if(locked&&!armed){armed=true;$('again').textContent='Tap again to replace locked results';armT=setTimeout(()=>{armed=false;$('again').textContent='New round'},3500);return}
+  start();
+};
+$('copy').onclick=async()=>{
+  const txt=`Rank 5, Cut 5 — ${deck}\n\nRANK\n`+rank.map((r,i)=>`${i+1}. ${r.e} ${r.t}`).join('\n')+`\n\nCUT\n`+cut.map(r=>`✕ ${r.e} ${r.t}`).join('\n');
+  try{await navigator.clipboard.writeText(txt);say('Copied!')}catch(e){say(txt.replace(/\n/g,' · '))}
+};
+(function init(){
+  try{
+    const sv=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(sv&&sv.S){
+      Object.keys(sv.S).forEach(n=>{const x=sv.S[n];if(DECKS[n]&&x&&Array.isArray(x.items)&&x.rank&&x.rank.length===5&&x.cut&&x.cut.length===5)S[n]=x});
+      if(DECKS[sv.deck]&&S[sv.deck]){deck=sv.deck;restore(S[deck]);document.getElementById('app').classList.toggle('locked',locked);render();return}
+    }
+  }catch(e){}
+  start();
+})();
+</script>
+</body>
+</html>
